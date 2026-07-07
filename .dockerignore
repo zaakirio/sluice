@@ -1,0 +1,10 @@
+.venv
+.pytest_cache
+__pycache__
+*.pyc
+*.db
+.github
+.git
+tests
+scripts
+demo-output.txt

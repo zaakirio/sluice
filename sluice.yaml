@@ -1,0 +1,70 @@
+backends:
+  local:
+    type: openai
+    base_url: http://127.0.0.1:8092/v1
+    # llama-server ignores the model field; kept for ledger attribution.
+    model: LFM2.5-1.2B-Instruct-Uncensored-Q4_K_M
+    # Local inference on owned hardware: zero marginal cost per token.
+    input_cost_per_mtok: 0.0
+    output_cost_per_mtok: 0.0
+    timeout_s: 120
+
+  claude-sonnet:
+    type: anthropic
+    base_url: https://api.anthropic.com
+    model: claude-sonnet-5
+    # Anthropic intro pricing, billed through 2026-08-31: $2/$10 per MTok
+    # (sticker price $3/$15). Source: platform.claude.com pricing docs, July 2026.
+    input_cost_per_mtok: 2.00
+    output_cost_per_mtok: 10.00
+    timeout_s: 120
+    api_key_env: ANTHROPIC_API_KEY
+
+  claude-haiku:
+    type: anthropic
+    base_url: https://api.anthropic.com
+    model: claude-haiku-4-5
+    # $1/$5 per MTok. Source: platform.claude.com pricing docs, July 2026.
+    input_cost_per_mtok: 1.00
+    output_cost_per_mtok: 5.00
+    timeout_s: 60
+    api_key_env: ANTHROPIC_API_KEY
+
+  # Generic OpenAI-compatible provider slot. Not referenced by any default
+  # policy chain; prices are placeholders - set them to your provider's rates
+  # before adding it to a chain.
+  openai-generic:
+    type: openai
+    base_url: https://api.openai.com/v1
+    model: gpt-4o-mini
+    input_cost_per_mtok: 0.15
+    output_cost_per_mtok: 0.60
+    timeout_s: 120
+    api_key_env: OPENAI_API_KEY
+
+# Every chain ends in `local` so the gateway degrades to free local inference
+# instead of failing when cloud backends are down or unauthenticated.
+policies:
+  cheap:
+    simple: [local]
+    moderate: [local]
+    complex: [local, claude-haiku]
+  balanced:
+    simple: [local, claude-haiku]
+    moderate: [claude-haiku, local]
+    complex: [claude-sonnet, claude-haiku, local]
+  quality:
+    simple: [claude-haiku, claude-sonnet, local]
+    moderate: [claude-sonnet, claude-haiku, local]
+    complex: [claude-sonnet, claude-haiku, local]
+
+default_policy: balanced
+
+reliability:
+  max_retries: 2
+  backoff_base_s: 0.25
+  backoff_max_s: 4.0
+  circuit_failure_threshold: 5
+  circuit_reset_s: 30
+
+ledger_path: sluice.db
