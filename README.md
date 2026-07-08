@@ -19,6 +19,9 @@ Teams that only ever call one hosted model API tend to have no answer to two que
 Sluice is a small, readable implementation of the production answer: route by request complexity and policy, account for every token at real per-MTok prices, and degrade gracefully through a fallback chain instead of failing.
 The unit-economics angle is concrete here because one backend is a local llama.cpp server with zero marginal cost, so the router can express "use the free model unless the request earns a paid one".
 
+Hosted gateways (Vercel AI Gateway, OpenRouter) already do provider failover and cost/latency routing, so Sluice is not trying to be a SaaS gateway.
+It is the self-hosted, auditable version for teams that cannot send every request through a third party (on-prem, VPC, data-residency, a local model in the mix) and want the routing policy and the cost ledger to be code they own and can reason about, not a dashboard.
+
 ## Quickstart
 
 ```bash

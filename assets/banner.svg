@@ -1,37 +1,53 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-label="Sluice - route every token, account for every cent">
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-label="sluice - route every token, account for every cent">
   <defs>
-    <radialGradient id="glow-sl" cx="0.22" cy="0.5" r="0.75">
+    <linearGradient id="sl-flow" x1="0" y1="0" x2="1" y2="0">
       <stop offset="0" stop-color="#3d8bd4" stop-opacity="0.15"/>
-      <stop offset="1" stop-color="#3d8bd4" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="edge-sl" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#3d8bd4"/>
-      <stop offset="1" stop-color="#3d8bd4" stop-opacity="0"/>
+      <stop offset="1" stop-color="#3d8bd4" stop-opacity="0.85"/>
     </linearGradient>
   </defs>
+  <rect width="1280" height="320" fill="#12151a"/>
 
-  <rect width="1280" height="320" fill="#131619"/>
-  <rect width="1280" height="320" fill="url(#glow-sl)"/>
-
-  <!-- faint oversized mark, right side texture -->
-  <g transform="translate(1000,30) scale(3.6)" opacity="0.05">
-    <path d="M6 12 h20 v12 l14 8 -14 8 v12 h-20 z" fill="#3d8bd4"/>
-    <path d="M46 24 h22 M46 40 h22" stroke="#3d8bd4" stroke-width="7" stroke-linecap="round"/>
+  <!-- FULL-WIDTH ROUTING DIAGRAM: one inflow (left) metered into three priced lanes (right).
+       The wordmark sits at the source; the diagram is the composition. -->
+  <!-- source node + wordmark -->
+  <g transform="translate(70,0)">
+    <text x="0" y="150" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="72" font-weight="800" letter-spacing="-2" fill="#eaf1f8">sluice</text>
+    <text x="4" y="188" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="21" fill="#9fb2c4">Route every token, account for every cent.</text>
+    <circle cx="14" cy="212" r="7" fill="#3d8bd4"/>
+    <text x="34" y="217" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="13" fill="#6f8296">one OpenAI-compatible endpoint · policy routing · retries + breakers · cost ledger</text>
   </g>
 
-  <!-- mark: gate splitting one flow into metered channels -->
-  <g transform="translate(96,112)">
-    <rect x="0" y="8" width="10" height="60" rx="2" fill="#3d8bd4"/>
-    <path d="M18 16 h26 l10 6 -10 6 h-26 z" fill="#3d8bd4"/>
-    <path d="M18 36 h40 l10 6 -10 6 h-40 z" fill="#3d8bd4" opacity="0.75"/>
-    <path d="M18 56 h18 l10 6 -10 6 h-18 z" fill="#3d8bd4" opacity="0.5"/>
+  <!-- the gate: flow splits from a single trunk into three lanes -->
+  <g transform="translate(560,0)" fill="none" stroke-linecap="round">
+    <!-- trunk -->
+    <path d="M0 160 H120" stroke="url(#sl-flow)" stroke-width="14"/>
+    <!-- split point -->
+    <circle cx="120" cy="160" r="9" fill="#3d8bd4" stroke="none"/>
+    <!-- three routed lanes at different costs -->
+    <path d="M120 160 C 200 160 200 78 300 78" stroke="#3d8bd4" stroke-width="9" opacity="0.9"/>
+    <path d="M120 160 C 200 160 200 160 300 160" stroke="#3d8bd4" stroke-width="9" opacity="0.6"/>
+    <path d="M120 160 C 200 160 200 242 300 242" stroke="#3d8bd4" stroke-width="9" opacity="0.4"/>
   </g>
 
-  <!-- wordmark -->
-  <text x="208" y="163" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="64" font-weight="700" letter-spacing="-1" fill="#ebeff2">sluice</text>
-  <text x="210" y="205" font-family="-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" font-size="21" fill="#a3adb6">Route every token, account for every cent.</text>
-
-  <text x="210" y="243" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace" font-size="14" fill="#6e7881">one OpenAI-compatible endpoint · policy routing · retries + breakers · cost ledger · OTel + Langfuse</text>
-
-  <rect x="96" y="272" width="420" height="2" fill="url(#edge-sl)"/>
+  <!-- lane endpoints with price tags (right) -->
+  <g transform="translate(860,0)" font-family="ui-monospace,'SF Mono',Menlo,Consolas,monospace">
+    <g transform="translate(0,78)">
+      <rect x="0" y="-20" width="300" height="40" rx="8" fill="#1b222b" stroke="#2f3d4a"/>
+      <circle cx="24" cy="0" r="6" fill="#7fb4e6"/>
+      <text x="42" y="5" font-size="15" fill="#cdd9e4">sonnet-5</text>
+      <text x="292" y="5" text-anchor="end" font-size="14" fill="#3d8bd4">$3 / $15</text>
+    </g>
+    <g transform="translate(0,160)">
+      <rect x="0" y="-20" width="300" height="40" rx="8" fill="#1b222b" stroke="#2f3d4a"/>
+      <circle cx="24" cy="0" r="6" fill="#5c97cc"/>
+      <text x="42" y="5" font-size="15" fill="#cdd9e4">haiku-4.5</text>
+      <text x="292" y="5" text-anchor="end" font-size="14" fill="#3d8bd4">$1 / $5</text>
+    </g>
+    <g transform="translate(0,242)">
+      <rect x="0" y="-20" width="300" height="40" rx="8" fill="#1b222b" stroke="#2f3d4a"/>
+      <circle cx="24" cy="0" r="6" fill="#4a7aa8"/>
+      <text x="42" y="5" font-size="15" fill="#cdd9e4">local</text>
+      <text x="292" y="5" text-anchor="end" font-size="14" fill="#57c98a">$0.00</text>
+    </g>
+  </g>
 </svg>
