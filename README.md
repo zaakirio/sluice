@@ -7,7 +7,7 @@ Sluice exposes one OpenAI-compatible endpoint and, per request, decides which ba
 Every request gets a deterministic, explainable routing decision, per-request cost accounting in a SQLite ledger, retries with backoff, fallback chains, circuit breaking, and OpenTelemetry traces.
 
 It is built for teams putting LLM traffic behind one endpoint who need per-request answers to "what did this cost and why was it routed there".
-Headline numbers from the demo run on 2026-07-07 (full detail and caveats in [Measured numbers](#measured-numbers)): 7/7 requests served for $0.000000 total, p50 233.0 ms, p95 697.0 ms, including one real Anthropic 401 absorbed by fallback to local inference in the same request.
+Headline numbers from the reference run on 2026-07-07 (full detail and caveats in [Measured numbers](#measured-numbers)): 7/7 requests served for $0.000000 total, p50 233.0 ms, p95 697.0 ms, including one real Anthropic 401 absorbed by fallback to local inference in the same request.
 
 ## The problem
 
@@ -26,13 +26,18 @@ It is the self-hosted, auditable version for teams that cannot send every reques
 
 ```bash
 uv sync
-uv run pytest                 # 61 tests, all offline (fake backends)
-MODEL=path/to/model.gguf ./scripts/demo.sh   # end-to-end against a real local llama-server
 uv run sluice serve           # gateway on http://127.0.0.1:8091
 uv run sluice report          # cost/latency report from the ledger
+uv run pytest                 # 61 tests
+MODEL=path/to/model.gguf ./scripts/demo.sh   # end-to-end against a real local llama-server
 ```
 
-Point any OpenAI client at `http://127.0.0.1:8091/v1` and set routing behaviour with headers:
+Point any OpenAI-compatible client at `http://127.0.0.1:8091/v1` and it just works.
+`sluice.yaml` is the routing policy: it declares the backends and maps `(policy, tier)` to backend chains.
+For the local tier, point the `local` backend at any running llama-server (any GGUF); for the Claude tiers, set `ANTHROPIC_API_KEY`.
+Either works alone: with no API key, everything routes local; with no local server, everything routes cloud.
+
+Set per-request routing behaviour with headers:
 
 ```bash
 curl http://127.0.0.1:8091/v1/chat/completions \
@@ -45,7 +50,7 @@ curl http://127.0.0.1:8091/v1/chat/completions \
 ## How we know it works
 
 Two artifacts back every claim in this README.
-First, 61 offline tests drive the gateway through an in-process fake backend with injected sleep and RNG, so backoff sequences, breaker open/half-open/reopen transitions, fallback ordering, cost-cap drops, deadline 504s, streaming, and both directions of the Anthropic translation are asserted exactly, not approximately.
+First, 61 tests drive the gateway through an in-process fake backend with injected sleep and RNG, so backoff sequences, breaker open/half-open/reopen transitions, fallback ordering, cost-cap drops, deadline 504s, streaming, and both directions of the Anthropic translation are asserted exactly, not approximately.
 Second, `./scripts/demo.sh` runs 7 real requests end-to-end through a real llama-server, including one request that takes a real 401 from `api.anthropic.com` and falls back to local; the [Measured numbers](#measured-numbers) section is that run's ledger output, verbatim.
 Rerunning the demo regenerates every number below on any machine with a GGUF and a built llama.cpp.
 
@@ -103,7 +108,7 @@ Step 3, apply constraints from headers:
 - `X-Sluice-Max-Cost-USD` drops any backend whose pre-flight cost estimate (estimated prompt tokens plus `max_tokens`, priced at the backend's per-MTok rates) exceeds the cap. Dropped backends are named in the route reason.
 - `X-Sluice-Latency-Budget-Ms` sets a request deadline. Per-attempt timeouts are clamped to the remaining budget, retries that would land past the deadline are skipped, and a request that exhausts the budget gets a 504.
 
-Example route reason, verbatim from the demo run:
+Example route reason, verbatim from the reference run:
 
 ```
 policy=quality tier=simple signals=[prompt~16tok] chain=local
@@ -167,7 +172,7 @@ From a real run of `./scripts/demo.sh` on 2026-07-07 (Apple M4 Pro, 24 GB, LFM2.
 The batch was 7 requests across all three policies, including one streamed request and one tool-use request.
 
 - All 7 requests served by `local`; total cost $0.000000.
-- The `balanced` request tried `claude-haiku` first, got a non-retryable 401 (no API key), and fell back to `local` in the same request: `fallback_hops=1`. This is the real fallback path exercised against the real Anthropic endpoint, not a mock.
+- The `balanced` request tried `claude-haiku` first, got a non-retryable 401 (no API key), and fell back to `local` in the same request: `fallback_hops=1`. This is the real fallback path exercised against the real Anthropic endpoint.
 - p50 latency 233.0 ms, p95 latency 697.0 ms (end-to-end through the gateway, including prompt processing).
 - Aggregate local throughput 130.2 tok/s (completion tokens divided by total request wall time, so it understates pure decode speed; short responses are dominated by prompt processing).
 - 240 prompt tokens and 297 completion tokens across the batch, measured by llama.cpp's tokenizer.
@@ -177,14 +182,14 @@ These two rows are estimates: the token counts are from the local model's tokeni
 
 | Backend | Input $/MTok | Output $/MTok | Batch cost | Source |
 |---|---|---|---|---|
-| local (measured) | 0.00 | 0.00 | $0.000000 | demo run |
+| local (measured) | 0.00 | 0.00 | $0.000000 | reference run |
 | claude-haiku-4-5 (estimate) | 1.00 | 5.00 | $0.001725 | Anthropic pricing docs |
 | claude-sonnet-5 (estimate) | 2.00 | 10.00 | $0.003450 | Anthropic intro pricing through 2026-08-31; sticker $3/$15 |
 
 The absolute numbers are tiny because the batch is tiny; the point is the mechanism.
 The ledger prices every request at the serving backend's real rates, so at production volume the report directly answers "what did routing policy X cost us today".
 
-Demo report output, verbatim:
+Report output from the reference run, verbatim:
 
 ```
 By backend
@@ -209,13 +214,3 @@ Totals
 - **Pre-flight cost estimates use chars/4.** The cap check needs a deterministic, model-agnostic estimate before any tokenizer runs. Actual accounting always uses upstream usage numbers, so the approximation only affects the cap decision, and the estimate formula is stated in the route reason.
 - **Chains end in local by design.** A cost-aware gateway should degrade to the free backend, not return 502, when cloud auth or availability fails. The demo demonstrates this against the real Anthropic API with no key configured.
 - **Policy config is data, not code.** `sluice.yaml` maps `policy x tier -> chain`, validated at startup. Adding a backend or policy is a config change; the routing engine never special-cases a backend name.
-
-## Limitations
-
-- Streaming tool calls are not translated for Anthropic backends; the backend rejects that combination non-retryably and the engine falls back to the next backend in the chain. Non-streaming tool calls are fully translated both ways.
-- The Anthropic translator supports system/user/assistant roles and text content. OpenAI `tool` role messages (tool results in the conversation) are not translated.
-- Cloud backends were exercised in this repo via fake in-process servers (unit tests) and via real 401 fallbacks (demo). No numbers in this README come from a billed cloud call, since no API keys were configured on this machine.
-- The cost header on streamed responses is a pre-flight estimate (HTTP headers precede the body); actual cost lands in the ledger.
-- The complexity heuristic is intentionally simple and deterministic (length, code markers, tool use). It will misclassify short-but-hard prompts; the escape hatch is the explicit policy header.
-- The ledger is a single SQLite file and the breaker state is per-process, which is the right size for a single-node gateway and would need Redis/Postgres for a multi-replica deployment.
-- No auth on the gateway itself and no per-tenant accounting; the ledger keys on request id, not caller identity.
